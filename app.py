@@ -1,15 +1,14 @@
 import streamlit as st
-from transformers import T5Tokenizer, T5ForConditionalGeneration
-import torch
+from transformers import pipeline
 
 @st.cache_resource
-def load_model():
-    model_name = "google/flan-t5-base"
-    tokenizer = T5Tokenizer.from_pretrained(model_name)
-    model = T5ForConditionalGeneration.from_pretrained(model_name)
-    return tokenizer, model
+def load_pipeline():
+    return pipeline(
+        "text2text-generation",
+        model="google/flan-t5-small"
+    )
 
-tokenizer, model = load_model()
+generator = load_pipeline()
 
 def explain_tamil_poem(poem_text):
     prompt = f"""
@@ -22,17 +21,11 @@ Give:
 Poem:
 {poem_text}
 """
-
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=300
-    )
-    result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return result
+    result = generator(prompt, max_new_tokens=200)
+    return result[0]["generated_text"]
 
 st.title("📜 Tamil Poem Explainer")
-st.write("Upload or paste any Tamil poem to get explanation.")
+st.write("Paste any Tamil poem and get explanation.")
 
 poem_input = st.text_area("Enter Tamil Poem")
 
@@ -43,3 +36,4 @@ if st.button("Explain"):
         with st.spinner("Analyzing..."):
             explanation = explain_tamil_poem(poem_input)
             st.write(explanation)
+
