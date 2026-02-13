@@ -1,22 +1,19 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import pipeline
 
 @st.cache_resource
 def load_model():
-    model_name = "ai4bharat/indictrans2-indic-indic-dist-200M"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    return tokenizer, model
+    # lightweight translation model
+    return pipeline(
+        "translation",
+        model="facebook/nllb-200-distilled-600M"
+    )
 
-tokenizer, model = load_model()
+translator = load_model()
 
 def convert_to_modern_tamil(text):
+    result = translator(text, src_lang="tam_Taml", tgt_lang="tam_Taml")
+    return result[0]["translation_text"]
 
-    input_text = f"Convert classical Tamil to modern Tamil: {text}"
-
-    inputs = tokenizer(input_text, return_tensors="pt", padding=True)
-    outputs = model.generate(**inputs, max_length=256)
-
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 
