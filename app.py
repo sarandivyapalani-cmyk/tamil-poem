@@ -1,39 +1,27 @@
 import streamlit as st
-from transformers import pipeline
+from model_loader import convert_to_modern_tamil
 
-@st.cache_resource
-def load_pipeline():
-    return pipeline(
-        "text2text-generation",
-        model="google/flan-t5-small"
-    )
+st.title("Ancient Tamil → Modern Tamil Converter")
 
-generator = load_pipeline()
+st.write("Upload or paste Tamil poem (5+ lines supported)")
 
-def explain_tamil_poem(poem_text):
-    prompt = f"""
-Explain the following Tamil poem in modern Tamil.
-Give:
-1. Summary
-2. Line-by-line explanation
-3. Literary elements
+text = st.text_area("Enter Tamil poem")
 
-Poem:
-{poem_text}
-"""
-    result = generator(prompt, max_new_tokens=200)
-    return result[0]["generated_text"]
+if st.button("Convert"):
 
-st.title("📜 Tamil Poem Explainer")
-st.write("Paste any Tamil poem and get explanation.")
+    if text.strip():
 
-poem_input = st.text_area("Enter Tamil Poem")
+        lines = text.split("\n")
 
-if st.button("Explain"):
-    if poem_input.strip() == "":
-        st.warning("Please enter a poem.")
-    else:
-        with st.spinner("Analyzing..."):
-            explanation = explain_tamil_poem(poem_input)
-            st.write(explanation)
+        st.write("### Output")
+
+        for i, line in enumerate(lines):
+            if line.strip():
+                modern = convert_to_modern_tamil(line)
+
+                st.write(f"Line {i+1}")
+                st.write("Original:", line)
+                st.write("Modern Tamil:", modern)
+                st.write("---")
+
 
