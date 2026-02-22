@@ -1,4 +1,5 @@
 streamlit
 requests
-pytesseract
-Pillow
+gtts
+SpeechRecognition
+pydub
