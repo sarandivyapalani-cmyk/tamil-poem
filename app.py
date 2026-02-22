@@ -1,117 +1,111 @@
 import streamlit as st
 import requests
+from PIL import Image
+import pytesseract
+import io
 
-# ==============================
-# CONFIGURATION
-# ==============================
+# ---------------------------
+# CONFIG
+# ---------------------------
 
 SARVAM_API_KEY = st.secrets["SARVAM_API_KEY"]
 SARVAM_URL = "https://api.sarvam.ai/v1/chat/completions"
 
-st.set_page_config(page_title="Tamil Linguistic Simplification System", layout="wide")
+st.set_page_config(page_title="Advanced Tamil Linguistic System", layout="wide")
 
-st.title("AI-Driven Tamil Simplification & Linguistic Analysis System")
+st.title("AI-Based Tamil Simplification & Complete Ilakkanam Analysis")
 
-st.markdown("### Phase 1: Any Language → Deep Simple Tamil")
-st.markdown("### Phase 2: Tamil → In-Depth Grammar + Explanation")
+# ---------------------------
+# FILE UPLOAD
+# ---------------------------
 
-# ==============================
-# USER INPUT
-# ==============================
+uploaded_file = st.file_uploader("Upload Text File or Image", type=["txt", "png", "jpg", "jpeg"])
 
-user_input = st.text_area("Enter Text Here:", height=200)
+text_from_file = ""
+
+if uploaded_file is not None:
+    if uploaded_file.type.startswith("image"):
+        image = Image.open(uploaded_file)
+        text_from_file = pytesseract.image_to_string(image, lang="tam")
+        st.success("Text extracted from image")
+    else:
+        text_from_file = uploaded_file.read().decode("utf-8")
+
+user_input = st.text_area("Or Enter Text Manually:", value=text_from_file, height=200)
 
 mode = st.radio(
     "Select Mode:",
-    ("Phase 1: Language to Simple Tamil", 
-     "Phase 2: Tamil Deep Linguistic Analysis")
+    ("Phase 1: Any Language to Deep Tamil",
+     "Phase 2: Full Tamil Ilakkanam Analysis")
 )
 
-# ==============================
-# PROMPT GENERATION
-# ==============================
+# ---------------------------
+# PROMPT
+# ---------------------------
 
 def generate_prompt(text, mode):
-    
-    if mode == "Phase 1: Language to Simple Tamil":
-        return f"""
-You are a Tamil linguistic professor.
 
-Convert the following text into deeply simplified Tamil.
+    if mode == "Phase 1: Any Language to Deep Tamil":
+        return f"""
+You are a Tamil school teacher explaining clearly to students.
 
 Text:
 {text}
 
-Instructions:
-1. Translate into Tamil if needed.
-2. Provide very detailed simplified explanation.
-3. Explain each sentence separately.
-4. Use easy vocabulary suitable for school students.
-5. Avoid generic AI style.
-6. Provide structured headings.
+Do the following:
 
-Output Format:
+1. Convert to clear, simple Tamil.
+2. Explain in teacher style, not AI style.
+3. Give real-life examples.
+4. Break difficult words.
+5. Provide Word Evolution Table including English meaning.
 
-### 1. எளிய தமிழ் மாற்றம்
-...
+Output sections:
 
-### 2. வரி வாரியாக விளக்கம்
-...
-
-### 3. முக்கிய சொற்களின் விளக்கம்
-Word | எளிய பொருள் | பயன்பாடு
-
-### 4. கருத்து விளக்கம்
-...
-
-### 5. நடைமுறை பயன்பாடு
-...
+1. எளிய தமிழ் விளக்கம்
+2. வரி வாரியான விளக்கம்
+3. சொற்கள் - விளக்கம் அட்டவணை
+4. Word Evolution Table (Tamil | Root | Simple Tamil | English Meaning)
+5. நடைமுறை எடுத்துக்காட்டு
 """
 
     else:
         return f"""
-You are a Tamil linguistic expert and grammar professor.
-
-Analyze the following Tamil text deeply.
+You are a Tamil Ilakkanam expert.
 
 Text:
 {text}
 
-Instructions:
-1. Provide detailed simplified meaning.
-2. Explain line-by-line.
-3. Break each word.
-4. Classify grammar type:
-   பெயர்ச்சொல், வினைச்சொல், உரிச்சொல், இடைச்சொல், பெயரடை, சுட்டுப்பெயர் etc.
-5. Explain word meaning in simple Tamil.
-6. Provide concept explanation.
-7. Avoid generic AI style.
-8. Use structured headings and tables.
+Provide deep Tamil Ilakkanam analysis including:
 
-Output Format:
+• எழுத்தியல்
+• சொறியல்
+• பொருளியல்
+• யாப்பியல் (if applicable)
+• பெயர்ச்சொல்
+• வினைச்சொல்
+• உரிச்சொல்
+• வேற்றுமை உருபு
+• காலம்
+• எண்
 
-### 1. எளிய விளக்கம்
-...
+Give:
 
-### 2. வரி வாரியாக விளக்கம்
-...
+1. Human-style detailed explanation.
+2. Line-by-line explanation.
+3. Complete Ilakkanam table.
+4. Word Evolution Table (Tamil | Root | Simple Tamil | English Meaning)
+5. Context explanation like teaching class.
 
-### 3. சொல் - இலக்கண அட்டவணை
-Word | இலக்கண வகை | எளிய பொருள் | விளக்கம்
-
-### 4. கருத்து விளக்கம்
-...
-
-### 5. பயன்பாட்டு சூழல்
-...
+Avoid robotic AI style.
 """
 
-# ==============================
-# API CALL FUNCTION
-# ==============================
+# ---------------------------
+# API CALL
+# ---------------------------
 
 def call_sarvam(prompt):
-    
+
     headers = {
         "Authorization": f"Bearer {SARVAM_API_KEY}",
         "Content-Type": "application/json"
@@ -120,10 +114,10 @@ def call_sarvam(prompt):
     data = {
         "model": "sarvam-m",
         "messages": [
-            {"role": "system", "content": "You are a Tamil language expert."},
+            {"role": "system", "content": "You are a Tamil professor."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.3
+        "temperature": 0.2
     }
 
     response = requests.post(SARVAM_URL, headers=headers, json=data)
@@ -131,18 +125,18 @@ def call_sarvam(prompt):
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
     else:
-        return f"Error: {response.text}"
+        return response.text
 
-# ==============================
-# RUN BUTTON
-# ==============================
+# ---------------------------
+# RUN
+# ---------------------------
 
-if st.button("Analyze Text"):
+if st.button("Process Text"):
 
     if user_input.strip() == "":
         st.warning("Please enter text.")
     else:
-        with st.spinner("Processing..."):
+        with st.spinner("Analyzing deeply..."):
             prompt = generate_prompt(user_input, mode)
             result = call_sarvam(prompt)
             st.markdown("---")
