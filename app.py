@@ -1,7 +1,8 @@
 import streamlit as st
 import requests
-from PIL import Image
-import pytesseract
+from gtts import gTTS
+import tempfile
+import speech_recognition as sr
 
 # ----------------------------
 # CONFIG
@@ -10,114 +11,84 @@ import pytesseract
 SARVAM_API_KEY = st.secrets["SARVAM_API_KEY"]
 SARVAM_URL = "https://api.sarvam.ai/v1/chat/completions"
 
-st.set_page_config(page_title="Tamil Linguistic System", layout="wide")
+st.set_page_config(page_title="Tamil AI Linguistic System", layout="wide")
 
-st.title("AI அடிப்படையிலான தமிழ் விளக்கம் மற்றும் இலக்கண பகுப்பாய்வு")
-
-# ----------------------------
-# PHASE SELECT
-# ----------------------------
+st.title("AI அடிப்படையிலான தமிழ் எளிமைப்படுத்தல் மற்றும் கல்வி பகுப்பாய்வு அமைப்பு")
 
 mode = st.radio(
     "Mode தேர்வு செய்யவும்:",
     (
-        "Phase 1: Any Language → ஆழமான தமிழ் விளக்கம்",
-        "Phase 2: தமிழ் உரை → ஆழமான பகுப்பாய்வு"
+        "Phase 1: Any Language → Simple Tamil",
+        "Phase 2: தமிழ் உரை → கல்வி பகுப்பாய்வு"
     )
 )
 
 # ----------------------------
-# FILE UPLOAD
+# INPUT SECTION
 # ----------------------------
 
-uploaded_file = st.file_uploader("கோப்பு பதிவேற்றம் (Text / Image)", type=["txt", "png", "jpg", "jpeg"])
+st.subheader("உரை உள்ளீடு")
 
-text_from_file = ""
+text_input = st.text_area("Text Paste செய்யவும்:", height=200)
 
-if uploaded_file is not None:
-    if uploaded_file.type.startswith("image"):
-        image = Image.open(uploaded_file)
-        text_from_file = pytesseract.image_to_string(image, lang="tam")
-        st.success("படத்திலிருந்து உரை பெறப்பட்டது")
-    else:
-        text_from_file = uploaded_file.read().decode("utf-8")
+audio_file = st.file_uploader("Voice Upload (Optional)", type=["wav", "mp3"])
 
-user_input = st.text_area("அல்லது உரையை இங்கே உள்ளிடவும்:", value=text_from_file, height=250)
+# Voice to text
+if audio_file:
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file) as source:
+        audio_data = recognizer.record(source)
+        try:
+            text_input = recognizer.recognize_google(audio_data, language="ta-IN")
+            st.success("Voice converted to text")
+        except:
+            st.error("Voice recognition failed")
 
 # ----------------------------
-# PROMPT
+# PROMPT GENERATOR
 # ----------------------------
 
 def generate_prompt(text, mode):
 
     if mode.startswith("Phase 1"):
         return f"""
-நீங்கள் ஒரு அனுபவமுள்ள தமிழ் ஆசிரியர் போல விளக்க வேண்டும்.
+Convert the following text into very simple, natural Tamil.
 
-கொடுக்கப்பட்ட உரை:
-
+Text:
 {text}
 
-1. முதலில் அதை தமிழில் மாற்றவும் (தேவைப்பட்டால்).
-2. ஒரே ஒரு ஆழமான, விரிவான, நீளமான விளக்கம் தர வேண்டும்.
-3. மனிதர் கற்பிப்பது போல இயல்பான நடைமுறையில் எழுதவும்.
-4. மறுபடியும் எளிமைப்படுத்தல் செய்ய வேண்டாம்.
-5. இலக்கண கூறுகள் இருப்பின் அவற்றை அட்டவணை வடிவில் மட்டும் காட்டவும்.
-6. Word Evaluation Table தரவும்.
-
-வெளியீடு வடிவம்:
-
-### 1. ஆழமான விளக்கம்
-
-### 2. இலக்கண அட்டவணை
-(அந்த உரையில் வரும் இலக்கண கூறுகள் மட்டும்)
-
-Column:
-சொல் | இலக்கண வகை | விளக்கம்
-
-### 3. Word Evaluation Table
-தமிழ் சொல் | அடிப்படை வடிவம் | எளிய தமிழ் | English Meaning
+Instructions:
+1. Understand full context.
+2. Rewrite fully in easy Tamil.
+3. Suitable for common people.
+4. Avoid literal translation.
+5. Paragraph format.
+6. Do not add grammar analysis.
 """
 
     else:
         return f"""
-நீங்கள் தமிழ் இலக்கண நிபுணர்.
+You are a Tamil school teacher.
 
-கொடுக்கப்பட்ட உரை:
-
+Given Text:
 {text}
 
-1. ஒரே ஒரு ஆழமான, விரிவான, நீளமான விளக்கம் தர வேண்டும்.
-2. மனித ஆசிரியர் போல இயல்பான தமிழில் எழுத வேண்டும்.
-3. தேவையற்ற சுருக்கம் செய்ய வேண்டாம்.
-4. அந்த உரையில் வரும் இலக்கண கூறுகளை மட்டும் கண்டறியவும்:
-   - பெயர்ச்சொல்
-   - வினைச்சொல்
-   - உரிச்சொல்
-   - பெயரடை
-   - சுட்டுப்பெயர்
-   - இடைச்சொல்
-   - வேற்றுமை உருபு
-   - காலம்
-   - எண்
-   - எழுத்தியல்
-   - சொறியல்
-   - பொருளியல்
-   - யாப்பியல் (இருந்தால் மட்டும்)
+Provide:
 
-5. இல்லாதவற்றை குறிப்பிட வேண்டாம்.
-6. இலக்கணத்தை அட்டவணை வடிவில் மட்டும் தர வேண்டும்.
-7. Word Evaluation Table தர வேண்டும்.
-8. தேவையற்ற ஆங்கில விளக்கம் தர வேண்டாம்.
+1. Very deep step-by-step explanation in Tamil.
+2. Explain like teaching students.
+3. No robotic AI tone.
+4. Provide Ilakkanam table (only those present).
+5. Provide Word Evolution Table.
 
-வெளியீடு வடிவம்:
+Output format:
 
 ### 1. ஆழமான விளக்கம்
 
 ### 2. இலக்கண அட்டவணை
 சொல் | இலக்கண வகை | விளக்கம்
 
-### 3. Word Evaluation Table
+### 3. Word Evolution Table
 தமிழ் சொல் | அடிப்படை வடிவம் | எளிய தமிழ் | English Meaning
 """
 
@@ -135,10 +106,10 @@ def call_sarvam(prompt):
     data = {
         "model": "sarvam-m",
         "messages": [
-            {"role": "system", "content": "You are a Tamil linguistic expert."},
+            {"role": "system", "content": "You are Tamil expert."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.1
+        "temperature": 0.2
     }
 
     response = requests.post(SARVAM_URL, headers=headers, json=data)
@@ -146,20 +117,28 @@ def call_sarvam(prompt):
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
     else:
-        return response.text
+        return "Error occurred"
 
 # ----------------------------
-# RUN
+# PROCESS
 # ----------------------------
 
-if st.button("பகுப்பாய்வு செய்யவும்"):
+if st.button("Process"):
 
-    if user_input.strip() == "":
-        st.warning("உரை உள்ளிடவும்")
+    if text_input.strip() == "":
+        st.warning("Text required")
     else:
-        with st.spinner("ஆழமான விளக்கம் உருவாக்கப்படுகிறது..."):
-            prompt = generate_prompt(user_input, mode)
+        with st.spinner("Processing..."):
+            prompt = generate_prompt(text_input, mode)
             result = call_sarvam(prompt)
+
             st.markdown("---")
             st.markdown(result)
+
+            # Tamil Voice Output for Phase 1
+            if mode.startswith("Phase 1"):
+                tts = gTTS(result, lang="ta")
+                temp_audio = tempfile.NamedTemporaryFile(delete=False)
+                tts.save(temp_audio.name)
+                st.audio(temp_audio.name)
 
