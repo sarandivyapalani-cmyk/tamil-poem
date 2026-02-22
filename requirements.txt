@@ -3,3 +3,5 @@ requests
 gtts
 SpeechRecognition
 pydub
+Pillow
+pytesseract
