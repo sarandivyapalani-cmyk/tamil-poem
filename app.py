@@ -1,144 +1,73 @@
-import streamlit as st
-import requests
-from gtts import gTTS
-import tempfile
-import speech_recognition as sr
+return f"""
+நீங்கள் ஒரு அனுபவமுள்ள தமிழ் ஆசிரியர் மற்றும் இலக்கண நிபுணர்.
 
-# ----------------------------
-# CONFIG
-# ----------------------------
+கொடுக்கப்பட்ட உரை:
 
-SARVAM_API_KEY = st.secrets["SARVAM_API_KEY"]
-SARVAM_URL = "https://api.sarvam.ai/v1/chat/completions"
-
-st.set_page_config(page_title="Tamil AI Linguistic System", layout="wide")
-
-st.title("AI அடிப்படையிலான தமிழ் எளிமைப்படுத்தல் மற்றும் கல்வி பகுப்பாய்வு அமைப்பு")
-
-mode = st.radio(
-    "Mode தேர்வு செய்யவும்:",
-    (
-        "Phase 1: Any Language → Simple Tamil",
-        "Phase 2: தமிழ் உரை → கல்வி பகுப்பாய்வு"
-    )
-)
-
-# ----------------------------
-# INPUT SECTION
-# ----------------------------
-
-st.subheader("உரை உள்ளீடு")
-
-text_input = st.text_area("Text Paste செய்யவும்:", height=200)
-
-audio_file = st.file_uploader("Voice Upload (Optional)", type=["wav", "mp3"])
-
-# Voice to text
-if audio_file:
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_file) as source:
-        audio_data = recognizer.record(source)
-        try:
-            text_input = recognizer.recognize_google(audio_data, language="ta-IN")
-            st.success("Voice converted to text")
-        except:
-            st.error("Voice recognition failed")
-
-# ----------------------------
-# PROMPT GENERATOR
-# ----------------------------
-
-def generate_prompt(text, mode):
-
-    if mode.startswith("Phase 1"):
-        return f"""
-Convert the following text into very simple, natural Tamil.
-
-Text:
 {text}
 
-Instructions:
-1. Understand full context.
-2. Rewrite fully in easy Tamil.
-3. Suitable for common people.
-4. Avoid literal translation.
-5. Paragraph format.
-6. Do not add grammar analysis.
-"""
+பின்வரும் விதிகளை மிகவும் கண்டிப்பாக பின்பற்ற வேண்டும்:
 
-    else:
-        return f"""
-You are a Tamil school teacher.
+1. ஒரே ஒரு ஆழமான, விரிவான, நீளமான விளக்கம் தர வேண்டும்.
+2. மனித ஆசிரியர் வகுப்பில் கற்பிப்பது போல இயல்பான நடைமுறையில் எழுத வேண்டும்.
+3. மறுபடியும் எளிமைப்படுத்தல் செய்யக்கூடாது.
+4. தேவையற்ற ஆங்கில விளக்கம் தரக்கூடாது.
+5. விளக்கம் மிகவும் தெளிவாக, எடுத்துக்காட்டுகளுடன் இருக்க வேண்டும்.
+6. உரையின் கருத்து, பின்னணி, பொருள் ஆகியவற்றை ஆழமாக விளக்க வேண்டும்.
 
-Given Text:
-{text}
-
-Provide:
-
-1. Very deep step-by-step explanation in Tamil.
-2. Explain like teaching students.
-3. No robotic AI tone.
-4. Provide Ilakkanam table (only those present).
-5. Provide Word Evolution Table.
-
-Output format:
+----------------------------------------
 
 ### 1. ஆழமான விளக்கம்
 
+(மிகவும் விரிவான, இயல்பான, மாணவர்கள் புரிந்துகொள்ளும் வகையில்)
+
+----------------------------------------
+
 ### 2. இலக்கண அட்டவணை
+
+கீழ்கண்ட இலக்கண கூறுகள் அந்த உரையில் இருந்தால் மட்டும் அட்டவணையில் காட்டவும்:
+- பெயர்ச்சொல்
+- வினைச்சொல்
+- உரிச்சொல்
+- பெயரடை
+- சுட்டுப்பெயர்
+- இடைச்சொல்
+- வேற்றுமை உருபு
+- காலம்
+- எண்
+- எழுத்தியல்
+- சொறியல்
+- பொருளியல்
+- யாப்பியல் (இருந்தால் மட்டும்)
+
+இல்லாத இலக்கணங்களை குறிப்பிடக்கூடாது.
+
+அட்டவணை வடிவம்:
+
 சொல் | இலக்கண வகை | விளக்கம்
 
+----------------------------------------
+
 ### 3. Word Evolution Table
+
+முக்கியமான அனைத்து அர்த்தமுள்ள சொற்களையும் (குறைந்தபட்சம் 5 இருந்தால்) சேர்க்க வேண்டும்.
+
+விதிகள்:
+
+- முக்கிய பெயர்ச்சொல், வினைச்சொல், உரிச்சொல் போன்றவற்றை மட்டும் சேர்க்கவும்.
+- ஒரு சொல் மட்டும் கொடுக்கக்கூடாது.
+- அட்டவணையை முழுமையாக நிரப்ப வேண்டும்.
+- அர்த்தமுள்ள அனைத்து முக்கிய சொற்களையும் சேர்க்க வேண்டும்.
+- தேவையற்ற சொற்களை சேர்க்க வேண்டாம்.
+- அட்டவணை பாதியில் நிறுத்தக்கூடாது.
+
+அட்டவணை வடிவம்:
+
 தமிழ் சொல் | அடிப்படை வடிவம் | எளிய தமிழ் | English Meaning
+
+----------------------------------------
+
+முழு வெளியீடு தெளிவான தலைப்புகளுடன் வழங்கப்பட வேண்டும்.
+ரோபோ மாதிரி பதில் தரக்கூடாது.
+மாணவர்கள் புரிந்து கொள்ளும் வகையில் இயல்பாக எழுத வேண்டும்.
 """
-
-# ----------------------------
-# API CALL
-# ----------------------------
-
-def call_sarvam(prompt):
-
-    headers = {
-        "Authorization": f"Bearer {SARVAM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "model": "sarvam-m",
-        "messages": [
-            {"role": "system", "content": "You are Tamil expert."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2
-    }
-
-    response = requests.post(SARVAM_URL, headers=headers, json=data)
-
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    else:
-        return "Error occurred"
-
-# ----------------------------
-# PROCESS
-# ----------------------------
-
-if st.button("Process"):
-
-    if text_input.strip() == "":
-        st.warning("Text required")
-    else:
-        with st.spinner("Processing..."):
-            prompt = generate_prompt(text_input, mode)
-            result = call_sarvam(prompt)
-
-            st.markdown("---")
-            st.markdown(result)
-
-            # Tamil Voice Output for Phase 1
-            if mode.startswith("Phase 1"):
-                tts = gTTS(result, lang="ta")
-                temp_audio = tempfile.NamedTemporaryFile(delete=False)
-                tts.save(temp_audio.name)
-                st.audio(temp_audio.name)
 
