@@ -6,40 +6,34 @@ import speech_recognition as sr
 from PIL import Image
 import pytesseract
 
-# ----------------------------
-# CONFIG
-# ----------------------------
+# ---------------- CONFIG ---------------- #
 
 SARVAM_API_KEY = st.secrets["SARVAM_API_KEY"]
 SARVAM_URL = "https://api.sarvam.ai/v1/chat/completions"
 
-st.set_page_config(page_title="Tamil AI Linguistic System", layout="wide")
+st.set_page_config(page_title="AI Tamil Linguistic System", layout="wide")
 
-st.title("AI அடிப்படையிலான தமிழ் எளிமைப்படுத்தல் மற்றும் கல்வி பகுப்பாய்வு அமைப்பு")
+st.title("AI அடிப்படையிலான தமிழ் விளக்கம் மற்றும் இலக்கண பகுப்பாய்வு")
 
-# ----------------------------
-# MODE SELECTION
-# ----------------------------
+# ---------------- MODE ---------------- #
 
 mode = st.radio(
     "Mode தேர்வு செய்யவும்:",
     (
         "Phase 1: Any Language → Simple Tamil",
-        "Phase 2: தமிழ் உரை → கல்வி பகுப்பாய்வு"
+        "Phase 2: தமிழ் உரை → கல்வி & இலக்கண பகுப்பாய்வு"
     )
 )
 
 st.markdown("---")
 
-# ----------------------------
-# FILE UPLOAD
-# ----------------------------
+# ---------------- FILE UPLOAD ---------------- #
 
 uploaded_file = st.file_uploader("Text / Image Upload (Optional)", type=["txt", "png", "jpg", "jpeg"])
 
 text_from_file = ""
 
-if uploaded_file is not None:
+if uploaded_file:
     if uploaded_file.type.startswith("image"):
         image = Image.open(uploaded_file)
         text_from_file = pytesseract.image_to_string(image, lang="tam")
@@ -47,19 +41,14 @@ if uploaded_file is not None:
     else:
         text_from_file = uploaded_file.read().decode("utf-8")
 
-# ----------------------------
-# TEXT INPUT
-# ----------------------------
+# ---------------- TEXT INPUT ---------------- #
 
 text_input = st.text_area("உரை உள்ளிடவும்:", value=text_from_file, height=250)
 
-# ----------------------------
-# VOICE INPUT (PHASE 1 ONLY)
-# ----------------------------
+# ---------------- VOICE INPUT (Phase 1 Only) ---------------- #
 
 if mode.startswith("Phase 1"):
-    audio_file = st.file_uploader("Voice Upload (Optional - wav/mp3)", type=["wav", "mp3"])
-
+    audio_file = st.file_uploader("Voice Upload (wav/mp3)", type=["wav", "mp3"])
     if audio_file:
         recognizer = sr.Recognizer()
         with sr.AudioFile(audio_file) as source:
@@ -70,38 +59,35 @@ if mode.startswith("Phase 1"):
             except:
                 st.error("Voice recognition failed")
 
-# ----------------------------
-# PROMPT GENERATOR
-# ----------------------------
+# ---------------- PROMPT FUNCTION ---------------- #
 
 def generate_prompt(text, mode):
 
-    # ------------------ PHASE 1 ------------------
+    # ---------- PHASE 1 ----------
     if mode.startswith("Phase 1"):
         return f"""
 You are an experienced Tamil teacher.
 
-Given the following text (may be any language):
+Given text (any language):
 
 {text}
 
-This is NOT literal translation.
+STRICT RULES:
 
-Follow strictly:
+1. Understand full meaning first.
+2. Do NOT translate word-by-word.
+3. Rewrite fully in very simple, natural Tamil.
+4. Break long sentences if needed.
+5. Replace difficult words with easy Tamil.
+6. Slightly explain naturally inside paragraph.
+7. Do NOT retain foreign sentence structure.
+8. Output must feel like human explanation.
+9. Support long paragraphs properly.
 
-1. Understand full context first.
-2. Rewrite completely in very simple, natural Tamil.
-3. Break long sentences if needed.
-4. Replace difficult words with easy Tamil.
-5. Slightly explain meaning naturally inside paragraph.
-6. Do NOT translate word-by-word.
-7. Do NOT keep foreign sentence structure.
-8. Output should feel like human explanation.
-
-Give only the final simplified Tamil text.
+Give only final simplified Tamil text.
 """
 
-    # ------------------ PHASE 2 ------------------
+    # ---------- PHASE 2 ----------
     else:
         return f"""
 நீங்கள் ஒரு அனுபவமுள்ள தமிழ் ஆசிரியர் மற்றும் இலக்கண நிபுணர்.
@@ -110,74 +96,79 @@ Give only the final simplified Tamil text.
 
 {text}
 
-கண்டிப்பாக பின்வரும் அமைப்பில் விளக்க வேண்டும்:
+---------------------------------------
+INTERNAL PROCESS (Do not display):
+1. ஒவ்வொரு சொல்லையும் பிரித்து ஆராயவும்.
+2. சொல்லின் அடிப்படை வடிவத்தை கண்டறியவும்.
+3. இலக்கண வகையை உறுதி செய்யவும்.
+4. வேற்றுமை உருபு / காலம் / எண் ஆகியவை சரிபார்க்கவும்.
+5. பின்னர் இறுதி பதிலை உருவாக்கவும்.
+---------------------------------------
 
-----------------------------------------
+FINAL OUTPUT FORMAT:
 
 ### 1. ஆழமான விளக்கம்
 
-- ஒரே ஒரு விரிவான, நீளமான, இயல்பான மனித ஆசிரியர் நடைமுறை விளக்கம்.
-- மாணவர்கள் புரிந்து கொள்ளும் வகையில்.
+- ஒரே ஒரு விரிவான, நீளமான, மனித ஆசிரியர் நடை.
 - எடுத்துக்காட்டுகளுடன்.
 - தேவையற்ற ஆங்கிலம் சேர்க்க வேண்டாம்.
 
-----------------------------------------
+---------------------------------------
 
 ### 2. இலக்கண அட்டவணை
 
-அந்த உரையில் வரும் இலக்கண கூறுகளை மட்டும் சேர்க்கவும்:
+கீழ்கண்ட வகைகளில் உள்ளவற்றை மட்டும் பயன்படுத்தவும்:
 
-- பெயர்ச்சொல்
-- வினைச்சொல்
-- உரிச்சொல்
-- பெயரடை
-- சுட்டுப்பெயர்
-- இடைச்சொல்
-- வேற்றுமை உருபு
-- காலம்
-- எண்
-- எழுத்தியல்
-- சொறியல்
-- பொருளியல்
-- யாப்பியல் (இருந்தால் மட்டும்)
+பெயர்ச்சொல்
+வினைச்சொல்
+உரிச்சொல்
+பெயரடை
+சுட்டுப்பெயர்
+இடைச்சொல்
+வேற்றுமை உருபு
+காலம்
+எண்
+எழுத்தியல்
+சொறியல்
+பொருளியல்
+யாப்பியல்
 
 அட்டவணை வடிவம்:
 
 சொல் | இலக்கண வகை | விளக்கம்
 
 இல்லாதவற்றை குறிப்பிட வேண்டாம்.
+புதிய வகைகள் உருவாக்க வேண்டாம்.
 
-----------------------------------------
+---------------------------------------
 
-### 3. எடுத்துக்காட்டு
+### 3. வாழ்க்கை எடுத்துக்காட்டு
 
-இந்த கருத்தை புரிந்து கொள்ள வாழ்க்கை சம்பந்தப்பட்ட எடுத்துக்காட்டு தர வேண்டும்.
+---------------------------------------
 
-----------------------------------------
+### 4. சுருக்கமாக கருத்து (3-4 வரிகள்)
 
-### 4. சுருக்கமாக கருத்து
+---------------------------------------
 
-3 முதல் 4 வரிகளில் முக்கிய கருத்து.
+### 5. மாணவர்கள் கற்றுக்கொள்ளும் அம்சங்கள்
 
-----------------------------------------
+---------------------------------------
 
-### 5. மாணவர்கள் அறிந்து கொள்வது
+### 6. நம்பகத்தன்மை அளவு
 
-புள்ளிவிவரமாக மாணவர்கள் கற்றுக்கொள்ளும் அம்சங்களை தரவும்.
+High / Medium / Low (grammar clarity அடிப்படையில்)
 
-----------------------------------------
+---------------------------------------
 
-வெளியீடு தெளிவான தலைப்புகளுடன் இருக்க வேண்டும்.
 ரோபோ மாதிரி பதில் தரக்கூடாது.
+அறிவியல் மற்றும் இலக்கண ரீதியாக துல்லியமாக இருக்க வேண்டும்.
 """
 
-# ----------------------------
-# API CALL
-# ----------------------------
+# ---------------- API CALL ---------------- #
 
 def call_sarvam(prompt, mode):
 
-    temperature = 0.3 if mode.startswith("Phase 1") else 0.15
+    temperature = 0.3 if mode.startswith("Phase 1") else 0.05
 
     headers = {
         "Authorization": f"Bearer {SARVAM_API_KEY}",
@@ -187,11 +178,11 @@ def call_sarvam(prompt, mode):
     data = {
         "model": "sarvam-m",
         "messages": [
-            {"role": "system", "content": "You are a Tamil language expert."},
+            {"role": "system", "content": "You are a Tamil linguistic expert."},
             {"role": "user", "content": prompt}
         ],
         "temperature": temperature,
-        "max_tokens": 1500
+        "max_tokens": 2000
     }
 
     response = requests.post(SARVAM_URL, headers=headers, json=data)
@@ -201,9 +192,7 @@ def call_sarvam(prompt, mode):
     else:
         return "Error occurred"
 
-# ----------------------------
-# PROCESS BUTTON
-# ----------------------------
+# ---------------- PROCESS ---------------- #
 
 if st.button("Process"):
 
@@ -217,7 +206,7 @@ if st.button("Process"):
             st.markdown("---")
             st.markdown(result)
 
-            # Voice Output only for Phase 1
+            # Voice Output only Phase 1
             if mode.startswith("Phase 1"):
                 tts = gTTS(result, lang="ta")
                 temp_audio = tempfile.NamedTemporaryFile(delete=False)
