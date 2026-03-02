@@ -14,7 +14,7 @@ SARVAM_URL = "https://api.sarvam.ai/v1/chat/completions"
 
 st.set_page_config(page_title="AI Tamil Linguistic System", layout="wide")
 
-st.title("AI அடிப்படையிலான தமிழ் எளிமைப்படுத்தல் மற்றும் இலக்கண பகுப்பாய்வு")
+st.title("நுண்ணறிவு அடிப்படையிலான தமிழ் மொழி விளக்க அமைப்பு")
 
 # ---------------- PDF GENERATION CLASS ---------------- #
 
