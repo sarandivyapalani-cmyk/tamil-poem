@@ -65,7 +65,7 @@ STRICT INSTRUCTIONS:
 3. Rewrite the content completely in simple spoken-style Tamil.
 4. Break long sentences into 2 or 3 short sentences.
 5. Replace difficult vocabulary with easy everyday Tamil words.
-6. If the idea is complex, explain it briefly in simple terms.
+6. If the idea is complex, explain briefly in simple terms.
 7. Maintain original meaning, but simplify structure.
 8. Output must be natural and human-like.
 9. Suitable for school students (age 12–16).
@@ -76,36 +76,46 @@ Important:
 - Do not use high literary Tamil.
 - Do not add headings.
 - Return only the simplified Tamil paragraph.
-
-Now produce the simplified Tamil version.
 """
 
     # -------- PHASE 2 -------- #
     else:
         return f"""
-நீங்கள் ஒரு தமிழ் இலக்கண நிபுணர்.
+நீங்கள் ஒரு தமிழ் இலக்கிய மற்றும் இலக்கண நிபுணர்.
 
 உரை:
 {text}
 
 -------------------------------------
 ### 1. இலக்கிய மற்றும் தத்துவ விளக்கம்
-- நேரடி பொருள்
-- உட்பொருள்
-- வாழ்க்கை நெறி
-- சமூக / மனவியல் கோணம்
-(12–15 வரிகள்)
+
+முக்கிய கட்டுப்பாடு:
+
+- கீழே உள்ள ஒவ்வொரு பகுதியும் குறைந்தது 6 முதல் 7 முழு வாக்கியங்களைக் கொண்டிருக்க வேண்டும்.
+- ஒரு வரி பதில் எழுதக்கூடாது.
+- சுருக்கமாக எழுதக்கூடாது.
+- தெளிவான பத்தி வடிவில் எழுத வேண்டும்.
+
+A) நேரடி பொருள்:
+(6–7 முழு வாக்கியங்களில் விரிவாக விளக்கவும்.)
+
+B) உட்பொருள்:
+(6–7 முழு வாக்கியங்களில் ஆழமான கருத்தை விளக்கவும்.)
+
+C) வாழ்க்கை நெறி:
+(6–7 முழு வாக்கியங்களில் நடைமுறை தொடர்பை விளக்கவும்.)
+
+D) சமூக / மனவியல் கோணம்:
+(6–7 முழு வாக்கியங்களில் சமூக மற்றும் மனவியல் விளக்கம் தரவும்.)
 
 -------------------------------------
 ### 2. துல்லியமான இலக்கண பகுப்பாய்வு
 
-முக்கிய வழிமுறை:
-
-1. முழு உரையில் இருந்து இலக்கண ரீதியாக 100% உறுதியாக சரியான 3 அல்லது 4 சொற்களை மட்டும் தேர்வு செய்யவும்.
+1. முழு உரையில் இருந்து 100% உறுதியாக சரியான 3 அல்லது 4 சொற்களை மட்டும் தேர்வு செய்யவும்.
 2. எந்த சந்தேகமும் உள்ள சொற்களை தேர்வு செய்யக்கூடாது.
-3. வேற்றுமை குழப்பம் அல்லது கால குழப்பம் உள்ள சொற்களை தவிர்க்கவும்.
+3. வேற்றுமை அல்லது கால குழப்பம் உள்ள சொற்களை தவிர்க்கவும்.
 4. மிகத் தெளிவான பெயர்ச்சொல் அல்லது வினைச்சொல் வடிவங்களை மட்டும் தேர்வு செய்யவும்.
-5. சந்தேகம் இருந்தால் அந்த சொல்லை முற்றிலும் தவிர்க்கவும்.
+5. சந்தேகம் இருந்தால் அந்த சொல்லை தவிர்க்கவும்.
 
 வடிவம்:
 
@@ -118,16 +128,21 @@ Now produce the simplified Tamil version.
 
 -------------------------------------
 ### 3. சுருக்கமான முடிவு
+
+(4–5 முழு வாக்கியங்களில் கருத்தை தெளிவாக முடிக்கவும்.)
 """
 
 # ---------------- SARVAM CALL ---------------- #
 
-def call_sarvam(prompt):
+def call_sarvam(prompt, mode):
 
     headers = {
         "Authorization": f"Bearer {SARVAM_API_KEY}",
         "Content-Type": "application/json"
     }
+
+    # Different temperature for each phase
+    temperature = 0.3 if mode.startswith("Phase 1") else 0.2
 
     data = {
         "model": "sarvam-m",
@@ -135,14 +150,14 @@ def call_sarvam(prompt):
             {"role": "system", "content": "You are a Tamil linguistic expert."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.3,
+        "temperature": temperature,
         "max_tokens": 2000
     }
 
     response = requests.post(SARVAM_URL, headers=headers, json=data)
 
     if response.status_code != 200:
-        return "Error occurred"
+        return "Error occurred while contacting API."
 
     return response.json()["choices"][0]["message"]["content"]
 
@@ -155,12 +170,12 @@ if st.button("Process"):
     else:
         with st.spinner("Processing..."):
             prompt = generate_prompt(text_input, mode)
-            result = call_sarvam(prompt)
+            result = call_sarvam(prompt, mode)
 
             st.markdown("---")
             st.markdown(result)
 
-            # Text-to-Speech for Phase 1
+            # Text-to-Speech only for Phase 1
             if mode.startswith("Phase 1"):
                 tts = gTTS(result, lang="ta")
                 temp_audio = tempfile.NamedTemporaryFile(delete=False)
