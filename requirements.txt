@@ -3,4 +3,3 @@ requests
 gtts
 SpeechRecognition
 pydub
-fpdf2
