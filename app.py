@@ -3,6 +3,13 @@ import requests
 from gtts import gTTS
 import tempfile
 import speech_recognition as sr
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+import os
 
 # ---------------- CONFIG ---------------- #
 
@@ -47,38 +54,18 @@ if mode.startswith("Phase 1"):
 
 def generate_prompt(text, mode):
 
-    # -------- PHASE 1 -------- #
     if mode.startswith("Phase 1"):
         return f"""
 You are an experienced Tamil school teacher.
 
-Task:
-Simplify the given text into very easy, clear, modern Tamil.
+Simplify the text into very easy modern Tamil.
+Break long sentences.
+Avoid literary style.
+Return only simplified paragraph.
 
 Text:
 {text}
-
-STRICT INSTRUCTIONS:
-
-1. Do NOT translate word-by-word.
-2. First understand the full meaning.
-3. Rewrite the content completely in simple spoken-style Tamil.
-4. Break long sentences into 2 or 3 short sentences.
-5. Replace difficult vocabulary with easy everyday Tamil words.
-6. If the idea is complex, explain briefly in simple terms.
-7. Maintain original meaning, but simplify structure.
-8. Output must be natural and human-like.
-9. Suitable for school students (age 12–16).
-10. If input is already simple, improve clarity further.
-
-Important:
-- Do not copy original sentence structure.
-- Do not use high literary Tamil.
-- Do not add headings.
-- Return only the simplified Tamil paragraph.
 """
-
-    # -------- PHASE 2 -------- #
     else:
         return f"""
 நீங்கள் ஒரு தமிழ் இலக்கிய மற்றும் இலக்கண நிபுணர்.
@@ -86,50 +73,25 @@ Important:
 உரை:
 {text}
 
--------------------------------------
 ### 1. இலக்கிய மற்றும் தத்துவ விளக்கம்
+ஒவ்வொரு பகுதியும் 6–7 முழு வாக்கியங்களாக இருக்க வேண்டும்.
 
-முக்கிய கட்டுப்பாடு:
+A) நேரடி பொருள்
+B) உட்பொருள்
+C) வாழ்க்கை நெறி
+D) சமூக / மனவியல் கோணம்
 
-- கீழே உள்ள ஒவ்வொரு பகுதியும் குறைந்தது 6 முதல் 7 முழு வாக்கியங்களைக் கொண்டிருக்க வேண்டும்.
-- ஒரு வரி பதில் எழுதக்கூடாது.
-- சுருக்கமாக எழுதக்கூடாது.
-- தெளிவான பத்தி வடிவில் எழுத வேண்டும்.
-
-A) நேரடி பொருள்:
-(6–7 முழு வாக்கியங்களில் விரிவாக விளக்கவும்.)
-
-B) உட்பொருள்:
-(6–7 முழு வாக்கியங்களில் ஆழமான கருத்தை விளக்கவும்.)
-
-C) வாழ்க்கை நெறி:
-(6–7 முழு வாக்கியங்களில் நடைமுறை தொடர்பை விளக்கவும்.)
-
-D) சமூக / மனவியல் கோணம்:
-(6–7 முழு வாக்கியங்களில் சமூக மற்றும் மனவியல் விளக்கம் தரவும்.)
-
--------------------------------------
 ### 2. துல்லியமான இலக்கண பகுப்பாய்வு
-
-1. முழு உரையில் இருந்து 100% உறுதியாக சரியான 3 அல்லது 4 சொற்களை மட்டும் தேர்வு செய்யவும்.
-2. எந்த சந்தேகமும் உள்ள சொற்களை தேர்வு செய்யக்கூடாது.
-3. வேற்றுமை அல்லது கால குழப்பம் உள்ள சொற்களை தவிர்க்கவும்.
-4. மிகத் தெளிவான பெயர்ச்சொல் அல்லது வினைச்சொல் வடிவங்களை மட்டும் தேர்வு செய்யவும்.
-5. சந்தேகம் இருந்தால் அந்த சொல்லை தவிர்க்கவும்.
+100% உறுதியான 3 அல்லது 4 சொற்களை மட்டும் தேர்வு செய்யவும்.
 
 வடிவம்:
-
 சொல்:
 அடிப்படை வடிவம்:
 இலக்கண வகை:
 விளக்கம்:
 
-(அட்டவணை வேண்டாம். பட்டியலாக மட்டும் தரவும்.)
-
--------------------------------------
 ### 3. சுருக்கமான முடிவு
-
-(4–5 முழு வாக்கியங்களில் கருத்தை தெளிவாக முடிக்கவும்.)
+4–5 முழு வாக்கியங்கள்.
 """
 
 # ---------------- SARVAM CALL ---------------- #
@@ -141,7 +103,6 @@ def call_sarvam(prompt, mode):
         "Content-Type": "application/json"
     }
 
-    # Different temperature for each phase
     temperature = 0.3 if mode.startswith("Phase 1") else 0.2
 
     data = {
@@ -161,6 +122,27 @@ def call_sarvam(prompt, mode):
 
     return response.json()["choices"][0]["message"]["content"]
 
+# ---------------- PDF GENERATOR ---------------- #
+
+def create_pdf(content):
+
+    file_path = "output.pdf"
+    doc = SimpleDocTemplate(file_path, pagesize=A4)
+    styles = getSampleStyleSheet()
+
+    normal_style = styles["Normal"]
+    elements = []
+
+    paragraphs = content.split("\n")
+
+    for para in paragraphs:
+        elements.append(Paragraph(para, normal_style))
+        elements.append(Spacer(1, 10))
+
+    doc.build(elements)
+
+    return file_path
+
 # ---------------- PROCESS ---------------- #
 
 if st.button("Process"):
@@ -175,9 +157,20 @@ if st.button("Process"):
             st.markdown("---")
             st.markdown(result)
 
-            # Text-to-Speech only for Phase 1
+            # Text-to-Speech (Phase 1)
             if mode.startswith("Phase 1"):
                 tts = gTTS(result, lang="ta")
                 temp_audio = tempfile.NamedTemporaryFile(delete=False)
                 tts.save(temp_audio.name)
                 st.audio(temp_audio.name)
+
+            # -------- PDF DOWNLOAD BUTTON -------- #
+            pdf_file = create_pdf(result)
+
+            with open(pdf_file, "rb") as f:
+                st.download_button(
+                    label="📥 Download as PDF",
+                    data=f,
+                    file_name="Tamil_Output.pdf",
+                    mime="application/pdf"
+                )
