@@ -1,5 +1,6 @@
 streamlit
 requests
-gtts
-SpeechRecognition
-pydub
+numpy
+scikit-learn
+sentence-transformers
+torch
