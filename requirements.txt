@@ -2,7 +2,3 @@ streamlit
 requests
 gTTS
 SpeechRecognition
-numpy
-scikit-learn
-sentence-transformers
-torch
