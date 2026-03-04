@@ -94,7 +94,7 @@ def calculate_complexity_score(text, long_word_count):
 
 def adaptive_temperature(score, mode):
     if not mode.startswith("Phase 1"):
-        return 0.2
+        return 0.2  # Stable output for analysis mode
 
     if score > 25:
         return 0.2
@@ -117,14 +117,14 @@ Simplify the given text into very easy, clear, modern Tamil.
 Text:
 {text}
 
-STRICT INSTRUCTIONS:
-1. Do NOT translate word-by-word.
-2. First understand the full meaning.
-3. Rewrite completely in simple spoken Tamil.
-4. Break long sentences.
-5. Replace difficult vocabulary.
-6. Suitable for school students.
-Return only simplified paragraph.
+STRICT RULES:
+- Do NOT translate word-by-word.
+- Understand full meaning first.
+- Rewrite completely in simple spoken Tamil.
+- Break long sentences.
+- Replace difficult vocabulary.
+- Suitable for school students.
+Return only simplified Tamil paragraph.
 """
 
     else:
@@ -135,15 +135,18 @@ Return only simplified paragraph.
 {text}
 
 ### 1. இலக்கிய விளக்கம்
-(6–7 முழு வாக்கியங்கள்)
+A) நேரடி பொருள் (6–7 வாக்கியங்கள்)
+B) உட்பொருள் (6–7 வாக்கியங்கள்)
+C) வாழ்க்கை நெறி (6–7 வாக்கியங்கள்)
+D) சமூக கோணம் (6–7 வாக்கியங்கள்)
 
-A) நேரடி பொருள்  
-B) உட்பொருள்  
-C) வாழ்க்கை நெறி  
-D) சமூக கோணம்  
-
-### 2. இலக்கண பகுப்பாய்வு
-3 அல்லது 4 தெளிவான சொற்கள் மட்டும்.
+### 2. துல்லியமான இலக்கண பகுப்பாய்வு
+3 அல்லது 4 தெளிவான மற்றும் 100% சரியான சொற்கள் மட்டும்.
+ஒவ்வொரு சொல்லுக்கும்:
+சொல்:
+அடிப்படை வடிவம்:
+இலக்கண வகை:
+விளக்கம்:
 
 ### 3. முடிவு
 (4–5 முழு வாக்கியங்கள்)
@@ -191,7 +194,7 @@ if st.button("Process"):
     else:
         with st.spinner("Processing..."):
 
-            # 1️⃣ Preprocess
+            # 1️⃣ Preprocessing
             morph_data = morphological_preprocessing(text_input)
 
             # 2️⃣ Complexity
@@ -200,7 +203,7 @@ if st.button("Process"):
                 morph_data["long_word_count"]
             )
 
-            # 3️⃣ Adaptive Temp
+            # 3️⃣ Adaptive Temperature
             temperature = adaptive_temperature(score, mode)
 
             st.write(f"Complexity Score: {round(score,2)}")
@@ -209,24 +212,28 @@ if st.button("Process"):
             # 4️⃣ Generate Prompt
             prompt = generate_prompt(text_input, mode)
 
-            # 5️⃣ First Generation
+            # 5️⃣ Generate Output
             result = call_sarvam(prompt, temperature)
 
-            # 6️⃣ Similarity Check
-            similarity = compute_similarity(text_input, result)
-            st.write(f"Semantic Similarity: {round(similarity,3)}")
+            # ---------------- PHASE 1 VALIDATION ---------------- #
+            if mode.startswith("Phase 1"):
 
-            # Regenerate if needed
-            if similarity < SIMILARITY_THRESHOLD:
-                st.warning("Low similarity detected. Regenerating...")
-                result = call_sarvam(prompt, temperature)
                 similarity = compute_similarity(text_input, result)
-                st.write(f"New Similarity: {round(similarity,3)}")
+                st.write(f"Semantic Similarity: {round(similarity,3)}")
+
+                if similarity < SIMILARITY_THRESHOLD:
+                    st.warning("Low similarity detected. Regenerating...")
+                    result = call_sarvam(prompt, temperature)
+                    similarity = compute_similarity(text_input, result)
+                    st.write(f"New Similarity: {round(similarity,3)}")
+
+            else:
+                st.info("Phase 2: Interpretative generation mode. Similarity validation skipped.")
 
             st.markdown("---")
             st.markdown(result)
 
-            # TTS only Phase 1
+            # TTS only for Phase 1
             if mode.startswith("Phase 1"):
                 tts = gTTS(result, lang="ta")
                 temp_audio = tempfile.NamedTemporaryFile(delete=False)
