@@ -1,37 +1,67 @@
 import streamlit as st
 import requests
+from gtts import gTTS
+import tempfile
+import speech_recognition as sr
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import re
-import os
 
-# ==============================
-# CONFIGURATION
-# ==============================
+# ---------------- CONFIG ---------------- #
 
-API_URL = "https://api.openai.com/v1/chat/completions"
-API_KEY = st.secrets["OPENAI_API_KEY"]
+SARVAM_API_KEY = st.secrets["SARVAM_API_KEY"]
+SARVAM_URL = "https://api.sarvam.ai/v1/chat/completions"
 
-MODEL_NAME = "gpt-4o-mini"  # You can change if needed
 SIMILARITY_THRESHOLD = 0.75
-MAX_TOKENS = 1500
 
-# Load embedding model once
+st.set_page_config(page_title="AI Tamil Linguistic System", layout="wide")
+
+st.title("AI அடிப்படையிலான தமிழ் எளிமைப்படுத்தல் மற்றும் இலக்கண பகுப்பாய்வு")
+
+# ---------------- LOAD EMBEDDING MODEL ---------------- #
+
 @st.cache_resource
 def load_embedding_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 embedding_model = load_embedding_model()
 
-# ==============================
-# 1️⃣ MORPHOLOGICAL PREPROCESSING
-# ==============================
+# ---------------- MODE ---------------- #
+
+mode = st.radio(
+    "Mode தேர்வு செய்யவும்:",
+    (
+        "Phase 1: Any Language → Simple Tamil",
+        "Phase 2: தமிழ் உரை → துல்லியமான இலக்கண பகுப்பாய்வு"
+    )
+)
+
+st.markdown("---")
+
+# ---------------- TEXT INPUT ---------------- #
+
+text_input = st.text_area("உரை உள்ளிடவும்:", height=250)
+
+# ---------------- VOICE INPUT (Phase 1 Only) ---------------- #
+
+if mode.startswith("Phase 1"):
+    audio_file = st.file_uploader("Voice Upload (wav)", type=["wav"])
+    if audio_file:
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(audio_file) as source:
+            audio_data = recognizer.record(source)
+            try:
+                text_input = recognizer.recognize_google(audio_data, language="ta-IN")
+                st.success("Voice converted to text")
+            except:
+                st.error("Voice recognition failed")
+
+# ---------------- MORPHOLOGICAL PREPROCESSING ---------------- #
 
 def morphological_preprocessing(text):
     text = text.strip()
     text = re.sub(r'\s+', ' ', text)
-
     words = text.split()
     long_words = [w for w in words if len(w) > 12]
 
@@ -41,9 +71,7 @@ def morphological_preprocessing(text):
         "word_count": len(words)
     }
 
-# ==============================
-# 2️⃣ COMPLEXITY SCORING
-# ==============================
+# ---------------- COMPLEXITY SCORING ---------------- #
 
 def calculate_complexity_score(text, long_word_count):
     sentences = re.split(r'[.!?]', text)
@@ -62,11 +90,12 @@ def calculate_complexity_score(text, long_word_count):
 
     return complexity_score
 
-# ==============================
-# 3️⃣ ADAPTIVE TEMPERATURE
-# ==============================
+# ---------------- ADAPTIVE TEMPERATURE ---------------- #
 
-def adaptive_temperature(score):
+def adaptive_temperature(score, mode):
+    if not mode.startswith("Phase 1"):
+        return 0.2
+
     if score > 25:
         return 0.2
     elif score > 15:
@@ -74,106 +103,132 @@ def adaptive_temperature(score):
     else:
         return 0.4
 
-# ==============================
-# 4️⃣ TRANSFORMER API CALL
-# ==============================
+# ---------------- PROMPT GENERATOR ---------------- #
 
-def generate_explanation(text, temperature):
-    prompt = f"""
-You are an advanced Tamil NLP system using transformer-based contextual attention.
+def generate_prompt(text, mode):
 
-Your task:
-- Deeply understand the meaning.
-- Preserve semantic integrity.
-- Simplify grammar and vocabulary.
-- Expand explanation clearly.
-- Provide 6 to 8 meaningful sentences in paragraph format.
+    if mode.startswith("Phase 1"):
+        return f"""
+You are an experienced Tamil school teacher.
 
-Input Tamil Text:
+Task:
+Simplify the given text into very easy, clear, modern Tamil.
+
+Text:
 {text}
 
-Output:
-Provide simplified Tamil explanation.
+STRICT INSTRUCTIONS:
+1. Do NOT translate word-by-word.
+2. First understand the full meaning.
+3. Rewrite completely in simple spoken Tamil.
+4. Break long sentences.
+5. Replace difficult vocabulary.
+6. Suitable for school students.
+Return only simplified paragraph.
 """
 
+    else:
+        return f"""
+நீங்கள் ஒரு தமிழ் இலக்கிய மற்றும் இலக்கண நிபுணர்.
+
+உரை:
+{text}
+
+### 1. இலக்கிய விளக்கம்
+(6–7 முழு வாக்கியங்கள்)
+
+A) நேரடி பொருள்  
+B) உட்பொருள்  
+C) வாழ்க்கை நெறி  
+D) சமூக கோணம்  
+
+### 2. இலக்கண பகுப்பாய்வு
+3 அல்லது 4 தெளிவான சொற்கள் மட்டும்.
+
+### 3. முடிவு
+(4–5 முழு வாக்கியங்கள்)
+"""
+
+# ---------------- SARVAM CALL ---------------- #
+
+def call_sarvam(prompt, temperature):
+
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {SARVAM_API_KEY}",
         "Content-Type": "application/json"
     }
 
     data = {
-        "model": MODEL_NAME,
+        "model": "sarvam-m",
         "messages": [
-            {"role": "system", "content": "You are a Tamil language expert."},
+            {"role": "system", "content": "You are a Tamil linguistic expert."},
             {"role": "user", "content": prompt}
         ],
         "temperature": temperature,
-        "max_tokens": MAX_TOKENS
+        "max_tokens": 2000
     }
 
-    response = requests.post(API_URL, headers=headers, json=data)
+    response = requests.post(SARVAM_URL, headers=headers, json=data)
 
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    else:
-        st.error("API Error: " + str(response.text))
-        return None
+    if response.status_code != 200:
+        return "API Error"
 
-# ==============================
-# 5️⃣ SEMANTIC SIMILARITY VALIDATION
-# ==============================
+    return response.json()["choices"][0]["message"]["content"]
+
+# ---------------- SEMANTIC SIMILARITY ---------------- #
 
 def compute_similarity(original, generated):
     embeddings = embedding_model.encode([original, generated])
     similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
     return similarity
 
-# ==============================
-# STREAMLIT UI
-# ==============================
+# ---------------- PROCESS ---------------- #
 
-st.set_page_config(page_title="தமிழ் விளக்க அமைப்பு", layout="wide")
-st.title("📘 தமிழ் விளக்க அமைப்பு")
+if st.button("Process"):
 
-user_input = st.text_area("தமிழ் உரையை உள்ளிடவும்:", height=200)
-
-if st.button("விளக்கம் உருவாக்கு"):
-
-    if user_input.strip() == "":
-        st.warning("தயவுசெய்து உரையை உள்ளிடவும்.")
+    if text_input.strip() == "":
+        st.warning("உரை உள்ளிடவும்")
     else:
+        with st.spinner("Processing..."):
 
-        # Step 1: Preprocessing
-        morph_data = morphological_preprocessing(user_input)
+            # 1️⃣ Preprocess
+            morph_data = morphological_preprocessing(text_input)
 
-        # Step 2: Complexity Score
-        score = calculate_complexity_score(
-            morph_data["clean_text"],
-            morph_data["long_word_count"]
-        )
+            # 2️⃣ Complexity
+            score = calculate_complexity_score(
+                morph_data["clean_text"],
+                morph_data["long_word_count"]
+            )
 
-        # Step 3: Adaptive Temperature
-        temp = adaptive_temperature(score)
+            # 3️⃣ Adaptive Temp
+            temperature = adaptive_temperature(score, mode)
 
-        st.write(f"🔍 Complexity Score: {round(score,2)}")
-        st.write(f"🌡 Adaptive Temperature: {temp}")
+            st.write(f"Complexity Score: {round(score,2)}")
+            st.write(f"Adaptive Temperature: {temperature}")
 
-        # Step 4: Generate Explanation
-        explanation = generate_explanation(user_input, temp)
+            # 4️⃣ Generate Prompt
+            prompt = generate_prompt(text_input, mode)
 
-        if explanation:
+            # 5️⃣ First Generation
+            result = call_sarvam(prompt, temperature)
 
-            # Step 5: Similarity Check
-            similarity = compute_similarity(user_input, explanation)
+            # 6️⃣ Similarity Check
+            similarity = compute_similarity(text_input, result)
+            st.write(f"Semantic Similarity: {round(similarity,3)}")
 
-            st.write(f"📊 Semantic Similarity: {round(similarity,3)}")
-
-            # Regenerate if similarity too low
+            # Regenerate if needed
             if similarity < SIMILARITY_THRESHOLD:
                 st.warning("Low similarity detected. Regenerating...")
-                explanation = generate_explanation(user_input, temp)
-                similarity = compute_similarity(user_input, explanation)
-                st.write(f"📊 New Similarity: {round(similarity,3)}")
+                result = call_sarvam(prompt, temperature)
+                similarity = compute_similarity(text_input, result)
+                st.write(f"New Similarity: {round(similarity,3)}")
 
-            st.markdown("### ✨ Simplified Explanation")
-            st.write(explanation)
+            st.markdown("---")
+            st.markdown(result)
+
+            # TTS only Phase 1
+            if mode.startswith("Phase 1"):
+                tts = gTTS(result, lang="ta")
+                temp_audio = tempfile.NamedTemporaryFile(delete=False)
+                tts.save(temp_audio.name)
+                st.audio(temp_audio.name)
