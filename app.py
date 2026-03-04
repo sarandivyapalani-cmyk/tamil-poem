@@ -3,9 +3,6 @@ import requests
 from gtts import gTTS
 import tempfile
 import speech_recognition as sr
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer
 import re
 
 # ---------------- CONFIG ---------------- #
@@ -13,19 +10,9 @@ import re
 SARVAM_API_KEY = st.secrets["SARVAM_API_KEY"]
 SARVAM_URL = "https://api.sarvam.ai/v1/chat/completions"
 
-SIMILARITY_THRESHOLD = 0.75
-
 st.set_page_config(page_title="AI Tamil Linguistic System", layout="wide")
 
 st.title("AI அடிப்படையிலான தமிழ் எளிமைப்படுத்தல் மற்றும் இலக்கண பகுப்பாய்வு")
-
-# ---------------- LOAD EMBEDDING MODEL ---------------- #
-
-@st.cache_resource
-def load_embedding_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
-
-embedding_model = load_embedding_model()
 
 # ---------------- MODE ---------------- #
 
@@ -39,11 +26,9 @@ mode = st.radio(
 
 st.markdown("---")
 
-# ---------------- TEXT INPUT ---------------- #
-
 text_input = st.text_area("உரை உள்ளிடவும்:", height=250)
 
-# ---------------- VOICE INPUT (Phase 1 Only) ---------------- #
+# ---------------- VOICE INPUT ---------------- #
 
 if mode.startswith("Phase 1"):
     audio_file = st.file_uploader("Voice Upload (wav)", type=["wav"])
@@ -57,51 +42,50 @@ if mode.startswith("Phase 1"):
             except:
                 st.error("Voice recognition failed")
 
-# ---------------- MORPHOLOGICAL PREPROCESSING ---------------- #
+# ==========================================================
+# 🔷 MAIN ALGORITHM: Tamil Context-Aware Adaptive System
+# ==========================================================
 
-def morphological_preprocessing(text):
-    text = text.strip()
-    text = re.sub(r'\s+', ' ', text)
-    words = text.split()
+def tamil_context_adaptive_algorithm(text, mode):
+
+    # Step 1: Text Normalization
+    clean_text = text.strip()
+    clean_text = re.sub(r'\s+', ' ', clean_text)
+
+    # Step 2: Feature Extraction
+    words = clean_text.split()
     long_words = [w for w in words if len(w) > 12]
-
-    return {
-        "clean_text": text,
-        "long_word_count": len(long_words),
-        "word_count": len(words)
-    }
-
-# ---------------- COMPLEXITY SCORING ---------------- #
-
-def calculate_complexity_score(text, long_word_count):
-    sentences = re.split(r'[.!?]', text)
+    sentences = re.split(r'[.!?]', clean_text)
     sentences = [s for s in sentences if s.strip() != ""]
 
-    if len(sentences) == 0:
-        return 0
+    word_count = len(words)
+    sentence_count = len(sentences)
+    long_word_count = len(long_words)
 
-    avg_sentence_length = len(text.split()) / len(sentences)
+    # Step 3: Complexity Score Calculation
+    if sentence_count == 0:
+        avg_sentence_length = word_count
+    else:
+        avg_sentence_length = word_count / sentence_count
 
     complexity_score = (
         (avg_sentence_length * 0.5) +
         (long_word_count * 0.3) +
-        (len(text.split()) * 0.2)
+        (word_count * 0.2)
     )
 
-    return complexity_score
-
-# ---------------- ADAPTIVE TEMPERATURE ---------------- #
-
-def adaptive_temperature(score, mode):
+    # Step 4: Adaptive Temperature Selection
     if not mode.startswith("Phase 1"):
-        return 0.2  # Stable output for analysis mode
-
-    if score > 25:
-        return 0.2
-    elif score > 15:
-        return 0.3
+        temperature = 0.2
     else:
-        return 0.4
+        if complexity_score > 25:
+            temperature = 0.2
+        elif complexity_score > 15:
+            temperature = 0.3
+        else:
+            temperature = 0.4
+
+    return complexity_score, temperature
 
 # ---------------- PROMPT GENERATOR ---------------- #
 
@@ -111,20 +95,14 @@ def generate_prompt(text, mode):
         return f"""
 You are an experienced Tamil school teacher.
 
-Task:
-Simplify the given text into very easy, clear, modern Tamil.
+Simplify the text into clear, easy modern Tamil.
+Understand meaning fully before rewriting.
+Break long sentences.
+Use spoken-style Tamil.
+Maintain original meaning.
 
 Text:
 {text}
-
-STRICT RULES:
-- Do NOT translate word-by-word.
-- Understand full meaning first.
-- Rewrite completely in simple spoken Tamil.
-- Break long sentences.
-- Replace difficult vocabulary.
-- Suitable for school students.
-Return only simplified Tamil paragraph.
 """
 
     else:
@@ -134,25 +112,24 @@ Return only simplified Tamil paragraph.
 உரை:
 {text}
 
-### 1. இலக்கிய விளக்கம்
-A) நேரடி பொருள் (6–7 வாக்கியங்கள்)
-B) உட்பொருள் (6–7 வாக்கியங்கள்)
-C) வாழ்க்கை நெறி (6–7 வாக்கியங்கள்)
-D) சமூக கோணம் (6–7 வாக்கியங்கள்)
+1. இலக்கிய விளக்கம் (ஒவ்வொரு பகுதியும் 6–7 வாக்கியங்கள்)
+A) நேரடி பொருள்
+B) உட்பொருள்
+C) வாழ்க்கை நெறி
+D) சமூக கோணம்
 
-### 2. துல்லியமான இலக்கண பகுப்பாய்வு
-3 அல்லது 4 தெளிவான மற்றும் 100% சரியான சொற்கள் மட்டும்.
+2. துல்லியமான இலக்கண பகுப்பாய்வு
+3 அல்லது 4 சரியான சொற்கள் மட்டும்.
 ஒவ்வொரு சொல்லுக்கும்:
 சொல்:
 அடிப்படை வடிவம்:
 இலக்கண வகை:
 விளக்கம்:
 
-### 3. முடிவு
-(4–5 முழு வாக்கியங்கள்)
+3. முடிவு (4–5 வாக்கியங்கள்)
 """
 
-# ---------------- SARVAM CALL ---------------- #
+# ---------------- SARVAM API CALL ---------------- #
 
 def call_sarvam(prompt, temperature):
 
@@ -178,13 +155,6 @@ def call_sarvam(prompt, temperature):
 
     return response.json()["choices"][0]["message"]["content"]
 
-# ---------------- SEMANTIC SIMILARITY ---------------- #
-
-def compute_similarity(original, generated):
-    embeddings = embedding_model.encode([original, generated])
-    similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
-    return similarity
-
 # ---------------- PROCESS ---------------- #
 
 if st.button("Process"):
@@ -194,41 +164,17 @@ if st.button("Process"):
     else:
         with st.spinner("Processing..."):
 
-            # 1️⃣ Preprocessing
-            morph_data = morphological_preprocessing(text_input)
+            # Run Main Algorithm
+            complexity_score, temperature = tamil_context_adaptive_algorithm(text_input, mode)
 
-            # 2️⃣ Complexity
-            score = calculate_complexity_score(
-                morph_data["clean_text"],
-                morph_data["long_word_count"]
-            )
-
-            # 3️⃣ Adaptive Temperature
-            temperature = adaptive_temperature(score, mode)
-
-            st.write(f"Complexity Score: {round(score,2)}")
+            st.write(f"Complexity Score: {round(complexity_score,2)}")
             st.write(f"Adaptive Temperature: {temperature}")
 
-            # 4️⃣ Generate Prompt
+            # Generate Prompt
             prompt = generate_prompt(text_input, mode)
 
-            # 5️⃣ Generate Output
+            # Generate Output
             result = call_sarvam(prompt, temperature)
-
-            # ---------------- PHASE 1 VALIDATION ---------------- #
-            if mode.startswith("Phase 1"):
-
-                similarity = compute_similarity(text_input, result)
-                st.write(f"Semantic Similarity: {round(similarity,3)}")
-
-                if similarity < SIMILARITY_THRESHOLD:
-                    st.warning("Low similarity detected. Regenerating...")
-                    result = call_sarvam(prompt, temperature)
-                    similarity = compute_similarity(text_input, result)
-                    st.write(f"New Similarity: {round(similarity,3)}")
-
-            else:
-                st.info("Phase 2: Interpretative generation mode. Similarity validation skipped.")
 
             st.markdown("---")
             st.markdown(result)
